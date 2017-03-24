@@ -3,11 +3,9 @@ module Main exposing (..)
 import Time exposing (Time, second)
 import Keyboard.Extra
 import Html exposing (Html)
-import Html.Attributes
 import Tuple.Extra as Tuple exposing (..)
-
-
--- import Debug
+import Elegant
+import StyleModifiers
 
 
 initialKeyboard : Keyboard.Extra.Model
@@ -80,21 +78,10 @@ main =
         }
 
 
-toPx val =
-    (val |> toString) ++ "px"
-
-
-locationned ( x, y ) =
-    [ ( "position", "absolute" )
-    , ( "left", x |> toPx )
-    , ( "top", y |> toPx )
-    ]
-
-
 elementView : Element -> Html Msg
 elementView { location, sprite } =
     Html.div
-        [ Html.Attributes.style (locationned location) ]
+        [ Elegant.style [ StyleModifiers.absolutelyPositionned location ] ]
         [ Html.text sprite
         ]
 
@@ -116,6 +103,7 @@ subscriptions model =
         ]
 
 
+collision : a -> List a -> Bool
 collision =
     List.member
 
@@ -125,6 +113,7 @@ between ( minimum, maximum ) value =
     value >= minimum && value <= maximum
 
 
+out : Vector -> Float -> Bool
 out limits value =
     not (between limits value)
 
@@ -183,6 +172,7 @@ div scalar vector =
     Tuple.map2 (/) vector ( scalar, scalar )
 
 
+normalize : Vector -> Vector
 normalize vector =
     let
         magnitude_ =
@@ -227,14 +217,17 @@ applyWorldLimits ( limitX, limitY ) ({ velocity, location } as element) =
             }
 
 
+wind : Vector
 wind =
     ( 0.01, 0 )
 
 
+gravity : Vector
 gravity =
     ( 0, 0.1 )
 
 
+friction : Vector -> Vector
 friction =
     mult -1
         >> normalize
