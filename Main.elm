@@ -91,7 +91,6 @@ view model =
     Html.div []
         [ Html.div []
             (model.elements |> List.map elementView)
-        , Html.text ((normalize ( -10, 5 )) |> toString)
         ]
 
 
@@ -236,8 +235,8 @@ friction =
 
 applyForces ({ mass, velocity } as element) =
     let
-        addForce a =
-            add (div mass a)
+        addForce force =
+            add (div mass force)
     in
         { element
             | acceleration =
