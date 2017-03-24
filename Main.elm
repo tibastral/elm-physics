@@ -5,7 +5,9 @@ import Keyboard.Extra
 import Html exposing (Html)
 import Html.Attributes
 import Tuple.Extra as Tuple exposing (..)
-import Debug
+
+
+-- import Debug
 
 
 initialKeyboard : Keyboard.Extra.Model
@@ -100,7 +102,10 @@ elementView { location, sprite } =
 view : Model -> Html Msg
 view model =
     Html.div []
-        (model.elements |> List.map elementView)
+        [ Html.div []
+            (model.elements |> List.map elementView)
+        , Html.text ((normalize ( -10, 5 )) |> toString)
+        ]
 
 
 subscriptions : Model -> Sub Msg
@@ -111,9 +116,8 @@ subscriptions model =
         ]
 
 
-collision element elements =
-    elements
-        |> List.member element
+collision =
+    List.member
 
 
 between : Vector -> Float -> Bool
@@ -160,18 +164,34 @@ applyAcceleration ({ velocity, acceleration } as element) =
     }
 
 
-mag ( x1, y1 ) ( x2, y2 ) =
-    sqrt (x1 * x2 + y1 * y2)
+magnitude ( x, y ) =
+    sqrt (x * x + y * y)
 
 
-mult : Vector -> Vector -> Vector
-mult a b =
-    Tuple.map2 (*) a b
+mult : Float -> Vector -> Vector
+mult scalar =
+    Tuple.map2 (*) ( scalar, scalar )
+
+
+multVec : Vector -> Vector -> Vector
+multVec =
+    Tuple.map2 (*)
 
 
 div : Float -> Vector -> Vector
-div a b =
-    Tuple.map2 (/) b ( a, a )
+div scalar vector =
+    Tuple.map2 (/) vector ( scalar, scalar )
+
+
+normalize vector =
+    let
+        magnitude_ =
+            magnitude vector
+    in
+        if magnitude_ == 0 then
+            vector
+        else
+            vector |> div magnitude_
 
 
 applyWorldLimits ( limitX, limitY ) ({ velocity, location } as element) =
@@ -180,7 +200,7 @@ applyWorldLimits ( limitX, limitY ) ({ velocity, location } as element) =
             { element
                 | velocity =
                     velocity
-                        |> mult
+                        |> multVec
                             ( if between ( 0, limitX ) locX then
                                 1
                               else
@@ -215,7 +235,13 @@ gravity =
     ( 0, 0.1 )
 
 
-applyForces ({ mass } as element) =
+friction =
+    mult -1
+        >> normalize
+        >> mult 0.01
+
+
+applyForces ({ mass, velocity } as element) =
     let
         addForce a =
             add (div mass a)
@@ -224,18 +250,18 @@ applyForces ({ mass } as element) =
             | acceleration =
                 (( 0, 0 )
                     |> addForce wind
-                    |> addForce gravity
+                    |> add gravity
+                    |> addForce (friction velocity)
                 )
         }
 
 
 tickElement : Vector -> Element -> Element
-tickElement screenSize ({ location, velocity } as element) =
-    element
-        |> applyVelocity
-        |> applyWorldLimits screenSize
-        |> applyAcceleration
-        |> applyForces
+tickElement screenSize =
+    applyVelocity
+        >> applyWorldLimits screenSize
+        >> applyAcceleration
+        >> applyForces
 
 
 tickElements ({ elements } as model) =
@@ -245,9 +271,8 @@ tickElements ({ elements } as model) =
     }
 
 
-tick model =
-    model
-        |> tickElements
+tick =
+    tickElements
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
