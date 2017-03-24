@@ -62,6 +62,12 @@ init =
               , mass = 1
               , sprite = "⚽"
               }
+            , { location = ( 200, 100 )
+              , velocity = ( 0, 0 )
+              , acceleration = ( 0, 0 )
+              , mass = 0.4
+              , sprite = "⚽"
+              }
             ]
       }
     , Cmd.none
@@ -82,8 +88,7 @@ elementView : Element -> Html Msg
 elementView { location, sprite } =
     Html.div
         [ Elegant.style [ StyleModifiers.absolutelyPositionned location ] ]
-        [ Html.text sprite
-        ]
+        [ Html.text sprite ]
 
 
 view : Model -> Html Msg
@@ -152,6 +157,7 @@ applyAcceleration ({ velocity, acceleration } as element) =
     }
 
 
+magnitude : ( Float, Float ) -> Float
 magnitude ( x, y ) =
     sqrt (x * x + y * y)
 
