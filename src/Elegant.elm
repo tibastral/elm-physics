@@ -36,6 +36,12 @@ allStyles =
     ]
 
 
+compose : List (a -> a) -> (a -> a)
+compose modifiers =
+    modifiers
+        |> List.foldr (<<) identity
+
+
 toInlineStylesApply : a -> List ( a -> Maybe b, c ) -> List ( c, b )
 toInlineStylesApply result styles =
     case styles of
@@ -56,12 +62,6 @@ toInlineStyles default styleModifier =
     toInlineStylesApply (styleModifier default) allStyles
 
 
-compose : List (a -> a) -> (a -> a)
-compose modifiers =
-    modifiers
-        |> List.foldr (<<) identity
-
-
 styleApply : List StyleModifier -> List ( String, String )
 styleApply styleModifiers =
     toInlineStyles
@@ -74,6 +74,6 @@ styleApply styleModifiers =
         (styleModifiers |> compose)
 
 
-style : List (Style -> Style) -> Html.Attribute msg
+style : List StyleModifier -> Html.Attribute msg
 style styleModifiers =
     Html.Attributes.style (styleApply styleModifiers)
