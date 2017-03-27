@@ -5,7 +5,6 @@ import Keyboard.Extra
 import Html exposing (Html)
 import Tuple.Extra as Tuple exposing (..)
 import Elegant
-import StyleModifiers
 
 
 initialKeyboard : Keyboard.Extra.Model
@@ -87,7 +86,7 @@ main =
 elementView : Element -> Html Msg
 elementView { location, sprite } =
     Html.div
-        [ Elegant.style [ StyleModifiers.absolutelyPositionned location ] ]
+        [ Elegant.style [ Elegant.absolutelyPositionned location ] ]
         [ Html.text sprite ]
 
 
