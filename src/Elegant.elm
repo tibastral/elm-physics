@@ -1,4 +1,10 @@
-module Elegant exposing (style, Vector, Style, toPx, absolutelyPositionned)
+module Elegant
+    exposing
+        ( Vector
+        , Style
+        , absolutelyPositionned
+        , style
+        )
 
 import Html.Attributes
 import Html exposing (Html)
@@ -22,20 +28,20 @@ type alias StyleTransformer =
     Style -> Style
 
 
-toPx : a -> String
+toPx : Int -> String
 toPx val =
     (val |> toString) ++ "px"
 
 
-getStyles : Style -> List ( Maybe String, String )
+getStyles : Style -> List ( String, Maybe String )
 getStyles (Style styleValues) =
     List.map
-        (\( fun, attrName ) -> ( fun styleValues, attrName ))
-        [ ( .position, "position" )
-        , ( .left, "left" )
-        , ( .top, "top" )
-        , ( .bottom, "bottom" )
-        , ( .right, "right" )
+        (\( attrName, fun ) -> ( attrName, fun styleValues ))
+        [ ( "position", .position )
+        , ( "left", .left )
+        , ( "top", .top )
+        , ( "bottom", .bottom )
+        , ( "right", .right )
         ]
 
 
@@ -44,17 +50,17 @@ compose =
     List.foldr (<<) identity
 
 
-toInlineStylesApply : Style -> (Style -> List ( Maybe String, String )) -> List ( String, String )
+toInlineStylesApply : Style -> (Style -> List ( String, Maybe String )) -> List ( String, String )
 toInlineStylesApply result styles =
     styles result
         |> List.concatMap
-            (\( maybe_, attr ) ->
-                case maybe_ of
+            (\( attr, val ) ->
+                case val of
                     Nothing ->
                         []
 
-                    Just val ->
-                        [ ( attr, val ) ]
+                    Just val_ ->
+                        [ ( attr, val_ ) ]
             )
 
 
@@ -87,8 +93,8 @@ absolutelyPositionned ( x, y ) (Style style) =
     Style
         { style
             | position = Just "absolute"
-            , left = Just (x |> toPx)
-            , top = Just (y |> toPx)
+            , left = Just (x |> round |> toPx)
+            , top = Just (y |> round |> toPx)
             , right = Nothing
             , bottom = Nothing
         }
