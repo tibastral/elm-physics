@@ -64,7 +64,7 @@ init =
             , { location = ( 200, 100 )
               , velocity = ( 0, 0 )
               , acceleration = ( 0, 0 )
-              , mass = 0.4
+              , mass = 10
               , sprite = "⚽"
               }
             ]
@@ -228,7 +228,7 @@ wind =
 
 gravity : Vector
 gravity =
-    ( 0, 0.1 )
+    ( 0, 0.05 )
 
 
 friction : Vector -> Vector
@@ -246,8 +246,8 @@ applyForces ({ mass, velocity } as element) =
         { element
             | acceleration =
                 (( 0, 0 )
-                    |> addForce wind
                     |> add gravity
+                    |> addForce wind
                     |> addForce (friction velocity)
                 )
         }
