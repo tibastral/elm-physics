@@ -3,6 +3,8 @@ module Main exposing (..)
 import Time exposing (Time, second)
 import Keyboard.Extra
 import Html exposing (Html)
+import Html.Attributes
+import Html.Events
 import Tuple.Extra as Tuple exposing (..)
 import Elegant
 
@@ -18,9 +20,9 @@ type alias Vector =
 
 type alias Element =
     { location : Vector
-    , velocity : Vector
-    , acceleration : Vector
-    , mass : Float
+    , v : Vector
+    , a : Vector
+    , m : Float
     , sprite : String
     }
 
@@ -37,17 +39,19 @@ type alias Config =
 type alias Model =
     { config : Config
     , elements : List Element
+    , wind : String
     }
 
 
 type Msg
     = Tick Time
-    | KeyboardMsg Keyboard.Extra.Msg
+    | UpdateWind String
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( { config =
+    ( { wind = "0"
+      , config =
             { screenSize = ( 640, 480 )
             , backgroundColor = "#000"
             , keyboardModel = initialKeyboard
@@ -56,15 +60,15 @@ init =
             }
       , elements =
             [ { location = ( 300, 200 )
-              , velocity = ( 0, 0 )
-              , acceleration = ( 0, 0 )
-              , mass = 1
+              , v = ( 0, 0 )
+              , a = ( 0, 0 )
+              , m = 1
               , sprite = "⚽"
               }
             , { location = ( 200, 100 )
-              , velocity = ( 0, 0 )
-              , acceleration = ( 0, 0 )
-              , mass = 10
+              , v = ( 0, 0 )
+              , a = ( 0, 0 )
+              , m = 10
               , sprite = "⚽"
               }
             ]
@@ -95,14 +99,14 @@ view model =
     Html.div []
         [ Html.div []
             (model.elements |> List.map elementView)
+        , Html.input [ Html.Attributes.type_ "text", Html.Attributes.value model.wind, Html.Events.onInput UpdateWind ] []
         ]
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Sub.map KeyboardMsg Keyboard.Extra.subscriptions
-        , Time.every (second / model.config.fps) Tick
+        [ Time.every (second / model.config.fps) Tick
         ]
 
 
@@ -121,38 +125,15 @@ out limits value =
     not (between limits value)
 
 
-handleKeyboard : Model -> Keyboard.Extra.Msg -> ( Model, Cmd Msg )
-handleKeyboard model keyMsg =
-    let
-        ( keyboardModel, keyboardCmd ) =
-            Keyboard.Extra.update keyMsg model.config.keyboardModel
-
-        arrows =
-            Keyboard.Extra.arrows keyboardModel
-
-        config =
-            model.config
-
-        newConfig =
-            { config
-                | keyboardModel = keyboardModel
-                , arrows = ( arrows.x |> toFloat, arrows.y |> toFloat )
-            }
-    in
-        ( { model | config = newConfig }
-        , Cmd.map KeyboardMsg keyboardCmd
-        )
-
-
-applyVelocity ({ location, velocity } as element) =
+applyVelocity ({ location, v } as element) =
     { element
-        | location = Tuple.add location velocity
+        | location = Tuple.add location v
     }
 
 
-applyAcceleration ({ velocity, acceleration } as element) =
+applyAcceleration ({ v, a } as element) =
     { element
-        | velocity = Tuple.add velocity acceleration
+        | v = Tuple.add v a
     }
 
 
@@ -188,12 +169,12 @@ normalize vector =
             vector |> div magnitude_
 
 
-applyWorldLimits ( limitX, limitY ) ({ velocity, location } as element) =
+applyWorldLimits ( limitX, limitY ) ({ v, location } as element) =
     case location of
         ( locX, locY ) ->
             { element
-                | velocity =
-                    velocity
+                | v =
+                    v
                         |> multVec
                             ( if between ( 0, limitX ) locX then
                                 1
@@ -221,9 +202,12 @@ applyWorldLimits ( limitX, limitY ) ({ velocity, location } as element) =
             }
 
 
-wind : Vector
-wind =
-    ( 0.01, 0 )
+
+-- windForce : Vector
+
+
+windForce val =
+    ( val, 0 )
 
 
 gravity : Vector
@@ -238,33 +222,33 @@ friction =
         >> mult 0.01
 
 
-applyForces ({ mass, velocity } as element) =
+applyForces wind ({ m, v } as element) =
     let
         addForce force =
-            add (div mass force)
+            add (div m force)
     in
         { element
-            | acceleration =
+            | a =
                 (( 0, 0 )
                     |> add gravity
-                    |> addForce wind
-                    |> addForce (friction velocity)
+                    |> addForce (windForce wind)
+                    |> addForce (friction v)
                 )
         }
 
 
-tickElement : Vector -> Element -> Element
-tickElement screenSize =
+tickElement screenSize wind =
     applyVelocity
         >> applyWorldLimits screenSize
         >> applyAcceleration
-        >> applyForces
+        >> (applyForces wind)
 
 
-tickElements ({ elements } as model) =
+tickElements : Model -> Model
+tickElements ({ elements, wind } as model) =
     { model
         | elements =
-            elements |> List.map (tickElement model.config.screenSize)
+            elements |> List.map (tickElement model.config.screenSize (wind |> String.toFloat |> Result.withDefault 0))
     }
 
 
@@ -275,11 +259,8 @@ tick =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        KeyboardMsg keyMsg ->
-            handleKeyboard model keyMsg
+        UpdateWind wind ->
+            ( { model | wind = wind }, Cmd.none )
 
         Tick time ->
-            ( model
-                |> tick
-            , Cmd.none
-            )
+            ( tick model, Cmd.none )
