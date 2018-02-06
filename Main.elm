@@ -7,6 +7,7 @@ import Html.Attributes
 import Html.Events
 import Tuple.Extra as Tuple exposing (..)
 import Elegant
+import AnimationFrame
 
 
 initialKeyboard : Keyboard.Extra.Model
@@ -44,7 +45,7 @@ type alias Model =
 
 
 type Msg
-    = Tick Time
+    = TimeUpdate Time
     | UpdateWind String
 
 
@@ -99,15 +100,18 @@ view model =
     Html.div []
         [ Html.div []
             (model.elements |> List.map elementView)
-        , Html.input [ Html.Attributes.type_ "text", Html.Attributes.value model.wind, Html.Events.onInput UpdateWind ] []
+        , Html.input
+            [ Html.Attributes.type_ "text"
+            , Html.Attributes.value model.wind
+            , Html.Events.onInput UpdateWind
+            ]
+            []
         ]
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Time.every (second / model.config.fps) Tick
-        ]
+    AnimationFrame.diffs TimeUpdate
 
 
 collision : a -> List a -> Bool
@@ -125,9 +129,10 @@ out limits value =
     not (between limits value)
 
 
-applyVelocity ({ location, v } as element) =
+applyVelocity : Float -> Element -> Element
+applyVelocity dt ({ location, v } as element) =
     { element
-        | location = Tuple.add location v
+        | location = Tuple.add location (mult (dt * 0.5) v)
     }
 
 
@@ -139,12 +144,12 @@ applyAcceleration ({ v, a } as element) =
 
 magnitude : ( Float, Float ) -> Float
 magnitude ( x, y ) =
-    sqrt (x * x + y * y)
+    sqrt (x ^ 2 + y ^ 2)
 
 
 mult : Float -> Vector -> Vector
-mult scalar =
-    Tuple.map2 (*) ( scalar, scalar )
+mult k =
+    Tuple.map2 (*) ( k, k )
 
 
 multVec : Vector -> Vector -> Vector
@@ -153,8 +158,8 @@ multVec =
 
 
 div : Float -> Vector -> Vector
-div scalar vector =
-    Tuple.map2 (/) vector ( scalar, scalar )
+div k vector =
+    Tuple.map2 (/) vector ( k, k )
 
 
 normalize : Vector -> Vector
@@ -222,6 +227,10 @@ friction =
         >> mult 0.01
 
 
+applyForces :
+    Float
+    -> { b | a : a, m : Float, v : Vector }
+    -> { b | m : Float, v : Vector, a : ( Float, Float ) }
 applyForces wind ({ m, v } as element) =
     let
         addForce force =
@@ -237,18 +246,24 @@ applyForces wind ({ m, v } as element) =
         }
 
 
-tickElement screenSize wind =
-    applyVelocity
+tickElement screenSize wind dt =
+    applyVelocity dt
         >> applyWorldLimits screenSize
         >> applyAcceleration
         >> (applyForces wind)
 
 
-tickElements : Model -> Model
-tickElements ({ elements, wind } as model) =
+tickElements : Model -> Time -> Model
+tickElements ({ elements, wind } as model) dt =
     { model
         | elements =
-            elements |> List.map (tickElement model.config.screenSize (wind |> String.toFloat |> Result.withDefault 0))
+            elements
+                |> List.map
+                    (tickElement
+                        model.config.screenSize
+                        (wind |> String.toFloat |> Result.withDefault 0)
+                        dt
+                    )
     }
 
 
@@ -262,5 +277,5 @@ update msg model =
         UpdateWind wind ->
             ( { model | wind = wind }, Cmd.none )
 
-        Tick time ->
-            ( tick model, Cmd.none )
+        TimeUpdate dt ->
+            ( tick model dt, Cmd.none )
